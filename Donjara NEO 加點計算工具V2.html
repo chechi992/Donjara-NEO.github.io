@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donjara NEO 加點計算工具</title>
+    <style>
+        :root {
+            --primary: #4a90e2;
+            --bg: #f5f7fa;
+            --card-bg: #ffffff;
+            --text: #333333;
+            --selected: #ffecd2;
+            --selected-border: #ff6b6b;
+            --shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            color: #2c3e50;
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+            justify-content: center;
+        }
+
+        /* 左側：角色選擇區 */
+        .selection-area {
+            flex: 2;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            min-width: 300px;
+        }
+
+        .unit-group {
+            margin-bottom: 20px;
+        }
+        
+        .unit-title {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #888;
+            margin-bottom: 8px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 4px;
+        }
+
+        .char-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 8px;
+        }
+
+        .char-card {
+            background: #eee;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            padding: 10px 5px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+            user-select: none;
+            position: relative;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+        }
+
+        .char-card:hover {
+            background: #e2e8f0;
+        }
+
+        .char-card.active {
+            background-color: var(--selected);
+            border-color: var(--selected-border);
+            color: #d32f2f;
+            font-weight: bold;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .char-card.active::after {
+            content: '★';
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            font-size: 10px;
+            color: var(--selected-border);
+        }
+
+        /* 右側：計算結果區 */
+        .result-area {
+            flex: 1;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            min-width: 300px;
+            position: sticky;
+            top: 20px;
+            height: fit-content;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .score-box {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #2c3e50;
+            color: white;
+            border-radius: 8px;
+        }
+
+        .total-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .total-score {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #f1c40f;
+        }
+
+        .base-score-input {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .base-score-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .base-score-input select {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            flex: 1;
+            margin-left: 10px;
+        }
+
+        .base-score-input input {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-align: right;
+            margin-top: 5px;
+        }
+
+        .yaku-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .yaku-item {
+            background: #f8f9fa;
+            border-left: 4px solid #4a90e2;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 0 4px 4px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .yaku-item.special {
+            border-left-color: #9b59b6;
+            background: #f3e5f5;
+        }
+
+        .yaku-name {
+            font-weight: bold;
+            font-size: 0.9rem;
+            display: block;
+        }
+
+        .yaku-chars {
+            font-size: 0.75rem;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        .yaku-points {
+            font-weight: bold;
+            color: #e74c3c;
+        }
+        
+        .hand-counter {
+            text-align: right;
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .hand-counter.limit {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+
+        .reset-btn {
+            width: 100%;
+            padding: 10px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 20px;
+            font-size: 1rem;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column-reverse;
+            }
+            .result-area {
+                position: static;
+                max-height: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Donjara NEO 計算助手</h1>
+    <p style="text-align: center; color: #666; margin-top: -5px; font-size: 0.9rem;">點選胡牌的角色，自動計算加點役</p>
+
+    <div class="container">
+        <!-- 左側：角色選擇 -->
+        <div class="selection-area" id="charContainer">
+            <!-- JavaScript 將會自動生成角色按鈕 -->
+        </div>
+
+        <!-- 右側：結果顯示 -->
+        <div class="result-area">
+            <div class="score-box">
+                <div class="total-label">總得分 (Riddles)</div>
+                <div class="total-score" id="finalScore">0</div>
+            </div>
+
+            <div class="base-score-input">
+                <div class="base-score-row">
+                    <label>基本役類型：</label>
+                    <select id="baseScoreSelect" onchange="updateBaseScore()">
+                        <option value="0">請選擇...</option>
+                        <option value="60000">團體役 (60,000)</option>
+                        <option value="180000">事務所役 (180,000)</option>
+                        <option value="custom">自訂...</option>
+                    </select>
+                </div>
+                <!-- 自訂輸入框，預設隱藏 -->
+                <input type="number" id="baseScore" value="0" step="1000" oninput="calculate()" style="display:none;" placeholder="輸入自訂分數">
+            </div>
+
+            <div class="hand-counter" id="handCount">已選: 0 / 9</div>
+
+            <div id="bonusList">
+                <p style="text-align: center; color: #aaa; font-size: 0.9rem;">尚未觸發加點役</p>
+            </div>
+
+            <button class="reset-btn" onclick="resetAll()">重置所有選項</button>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. 資料庫設定 ---
+        
+        // 角色列表 (依據團體分類)
+        const units = [
+            { name: "fine", color: "#e3d6e5", chars: ["天祥院英智", "日々樹渉", "姫宮桃李", "伏見弓弦"] },
+            { name: "Trickstar", color: "#f9a888", chars: ["氷鷹北斗", "明星スバル", "遊木真", "衣更真緒"] },
+            { name: "流星隊", color: "#e84b53", chars: ["守沢千秋", "深海奏汰", "南雲鉄虎", "高峯翠", "仙石忍"] },
+            { name: "ALKALOID", color: "#66cdaa", chars: ["天城一彩", "白鳥藍良", "礼瀬マヨイ", "風早巽"] },
+            { name: "Eden", color: "#333333", chars: ["乱凪砂", "巴日和", "七種茨", "漣ジュン"] },
+            { name: "Valkyrie", color: "#9c3b4f", chars: ["斎宮宗", "影片みか"] },
+            { name: "2wink", color: "#f48fb1", chars: ["葵ひなた", "葵ゆうた"] },
+            { name: "Crazy:B", color: "#ffd700", chars: ["天城燐音", "HiMERU", "桜河こはく", "椎名ニキ"] },
+            { name: "UNDEAD", color: "#6a4c93", chars: ["朔間零", "羽風薫", "大神晃牙", "乙狩アドニス"] },
+            { name: "Ra*bits", color: "#a2c4c9", chars: ["仁兎なずな", "天満光", "真白友也", "紫之創"] },
+            { name: "紅月", color: "#d25e5e", chars: ["蓮巳敬人", "鬼龍紅郎", "神崎颯馬"] },
+            { name: "Knights", color: "#3f51b5", chars: ["朱桜司", "月永レオ", "瀬名泉", "朔間凛月", "鳴上嵐"] },
+            { name: "Switch", color: "#cddc39", chars: ["逆先夏目", "青葉つむぎ", "春川宙"] },
+            { name: "MaM", color: "#8d6e63", chars: ["三毛縞斑"] }, 
+            { name: "Double Face", color: "#8d6e63", chars: ["三毛縞斑", "桜河こはく"] },
+            { name: "Special for Princess!", color: "#d39dff", chars: ["エス", "ユメ", "カンナ", "ライカ"] },
+            { name: "OB / Staff", color: "#78909c", chars: ["佐賀美陣", "椚章臣"] }
+        ];
+
+        // 加點役規則 (根據 PDF 頁面 5-8 整理)
+        const bonusRules = [
+            // 常駐隊伍
+            { name: "Eve", score: 60000, req: ["巴日和", "漣ジュン"], min: 2 },
+            { name: "Adam", score: 60000, req: ["乱凪砂", "七種茨"], min: 2 },
+            { name: "Jin & Akiomi", score: 60000, req: ["佐賀美陣", "椚章臣"], min: 2 },
+
+            // 常規洗牌
+            { name: "√AtoZ", score: 90000, req: ["羽風薫", "守沢千秋", "逆先夏目", "天満光", "椎名ニキ"], min: 3 },
+            { name: "XXVeil", score: 90000, req: ["遊木真", "瀬名泉", "仁兎なずな", "神崎颯馬", "HiMERU"], min: 3 },
+            { name: "Branco", score: 90000, req: ["姫宮桃李", "白鳥藍良", "紫之創", "春川宙"], min: 3 },
+            { name: "Ring.A.Bell", score: 90000, req: ["高峯翠", "衣更真緒", "月永レオ", "蓮巳敬人", "天祥院英智"], min: 3 },
+            { name: "月都スペクタクル", score: 90000, req: ["巴日和", "風早巽", "氷鷹北斗", "深海奏汰", "鳴上嵐"], min: 3 },
+            { name: "La Mort", score: 90000, req: ["朔間零", "朔間凛月", "桜河こはく", "乱凪砂", "礼瀬マヨイ"], min: 3 },
+            { name: "Puffy☆Bunny", score: 90000, req: ["日々樹渉", "葵ひなた", "仙石忍", "天城一彩", "影片みか"], min: 3 },
+            { name: "舞闘会", score: 90000, req: ["鬼龍紅郎", "三毛縞斑", "漣ジュン", "乙狩アドニス", "南雲鉄虎"], min: 3 },
+            { name: "BLEND+", score: 90000, req: ["大神晃牙", "斎宮宗", "葵ゆうた", "青葉つむぎ", "朱桜司"], min: 3 },
+            { name: "Flambé!", score: 90000, req: ["真白友也", "天城燐音", "七種茨", "伏見弓弦", "明星スバル"], min: 3 },
+            { name: "EVIL_NUM+", score: 90000, req: ["逆先夏目", "氷鷹北斗", "紫之創", "葵ひなた", "朔間凛月"], min: 3 },
+            { name: "M∀N∀", score: 90000, req: ["伏見弓弦", "椎名ニキ", "朔間零", "三毛縞斑", "青葉つむぎ"], min: 3 },
+            { name: "Ha/Lo", score: 90000, req: ["朱桜司", "仙石忍", "真白友也", "ユメ"], min: 3 },
+            { name: "瑠璃茉莉", score: 90000, req: ["深海奏汰", "礼瀬マヨイ", "葵ゆうた", "瀬名泉", "明星スバル"], min: 3 },
+            { name: "レスQベアズ", score: 90000, req: ["仁兎なずな", "月永レオ", "姫宮桃李", "遊木真", "カンナ"], min: 3 },
+            
+            //試鏡篇洗牌
+            { name: "PIKAPIKA", score: 120000, req: ["仁兎なずな", "月永レオ", "姫宮桃李", "遊木真", "カンナ"], min: 3 },
+            { name: "TeaeS", score: 180000, req: ["仁兎なずな", "月永レオ", "姫宮桃李", "遊木真", "カンナ"], min: 3 },
+            { name: "MODE/D", score: 120000, req: ["仁兎なずな", "月永レオ", "姫宮桃李", "遊木真", "カンナ"], min: 3 },
+
+            // 臨時隊伍
+            { name: "オルタード", score: 90000, req: ["朔間零", "日々樹渉", "深海奏汰", "斎宮宗", "逆先夏目"], min: 3 },
+            { name: "fine-o", score: 90000, req: ["天祥院英智", "乱凪砂", "青葉つむぎ", "巴日和"], min: 3 },
+            { name: "デッドマンズ", score: 90000, req: ["蓮巳敬人", "朔間零", "大神晃牙"], min: 3 },
+
+            //愚人節
+            { name: "おじさんといっしょ!!", score: 90000, req: ["佐賀美陣", "椚章臣", "漣ジュン", "桜河こはく"], min: 3 },
+            { name: "フラタニティ!!", score: 90000, req: ["氷鷹北斗", "朱桜司", "朔間零", "斎宮宗", "天城燐音"], min: 3 },
+            { name: "STAR TRAINER", score: 90000, req: ["乙狩アドニス", "七種茨", "天満光", "瀬名泉", "姫宮桃李"], min: 3 },
+            { name: "Love∞Scramble", score: 90000, req: ["天祥院英智", "椎名ニキ", "三毛縞斑", "逆先夏目"], min: 3 },
+            
+            // 社團
+            { name: "プリティ5", score: 90000, req: ["巴日和", "姫宮桃李", "白鳥藍良", "影片みか", "鳴上嵐"], min: 3 },
+            { name: "あそび部", score: 90000, req: ["仙石忍", "漣ジュン", "葵ゆうた", "春川宙", "天城燐音"], min: 3 },
+            { name: "スイーツ会", score: 90000, req: ["朱桜司", "礼瀬マヨイ", "HiMERU", "桜河こはく"], min: 3 },
+            { name: "ビブリオン", score: 90000, req: ["青葉つむぎ", "乱凪砂", "羽風薫", "朱桜司", "紫之創"], min: 3 },
+            { name: "漫画会", score: 90000, req: ["蓮巳敬人", "漣ジュン", "衣更真緒", "高峯翠", "姫宮桃李"], min: 3 },
+            { name: "いきものクラブ（アニマルズ）", score: 90000, req: ["仁兎なずな", "日々樹渉", "明星スバル", "大神晃牙", "真白友也"], min: 3 },
+            { name: "いきものクラブ（オーシャンズ）", score: 90000, req: ["深海奏汰", "瀬名泉", "羽風薫", "神崎颯馬", "仙石忍"], min: 3 },
+            { name: "茨塾", score: 90000, req: ["HiMERU", "七種茨", "逆先夏目", "南雲鉄虎", "春川宙"], min: 3 },
+            { name: "敬人塾", score: 90000, req: ["蓮巳敬人", "伏見弓弦", "影片みか", "天城一彩", "白鳥藍良"], min: 3 },
+            { name: "お泊まりレジャー隊", score: 90000, req: ["月永レオ", "椎名ニキ", "鬼龍紅郎", "礼瀬マヨイ", "天満光"], min: 3 },
+            { name: "ガーデニア", score: 90000, req: ["風早巽", "逆先夏目", "紫之創", "高峯翠", "葵ひなた"], min: 3 },
+            { name: "クラフトモンスター", score: 90000, req: ["天城燐音", "朔間凛月", "斎宮宗", "遊木真", "氷鷹北斗"], min: 3 },
+            { name: "劇団『ドラマティカ』", score: 60000, req: ["月永レオ", "蓮巳敬人", "乱凪砂", "斎宮宗", "日々樹渉", "氷鷹北斗", "逆先夏目", "鳴上嵐", "真白友也"], min: 3, stackable: true },
+            { name: "神秘部", score: 90000, req: ["朔間零", "仁兎なずな", "青葉つむぎ", "深海奏汰", "遊木真"], min: 3 },
+            { name: "スポーツサバイバー", score: 90000, req: ["守沢千秋", "天祥院英智", "明星スバル", "乙狩アドニス", "天満光"], min: 3 },
+            { name: "Kaori", score: 90000, req: ["三毛縞斑", "神崎颯馬", "乙狩アドニス", "朱桜司", "桜河こはく"], min: 3 },
+            { name: "フレイヴァー", score: 90000, req: ["巴日和", "朔間凛月", "風早巽", "天祥院英智", "紫之創"], min: 3 },
+            { name: "ニキズキッチン", score: 90000, req: ["椎名ニキ", "瀬名泉", "神崎颯馬", "伏見弓弦", "七種茨"], min: 3 },
+            { name: "バンド『BB』", score: 90000, req: ["朔間零", "大神晃牙", "衣更真緒", "葵ひなた", "葵ゆうた"], min: 3 },
+            { name: "武道家『心』", score: 90000, req: ["三毛縞斑", "守沢千秋", "鬼龍紅郎", "南雲鉄虎", "天城一彩"], min: 3 },
+
+
+            // 寢室（4人房）
+            { name: "スバル寢", score: 120000, req: ["明星スバル", "日々樹渉", "三毛縞斑", "春川宙"], min: 3 },
+            { name: "高峯寢", score: 120000, req: ["高峯翠", "七種茨", "天満光", "青葉つむぎ"], min: 3 },
+            { name: "瀬名寢", score: 120000, req: ["瀬名泉", "衣更真緒", "斎宮宗", "鬼龍紅郎"], min: 3 },
+            // 寢室（3人房）
+            { name: "英智寢", score: 120000, req: ["天祥院英智", "朔間零", "白鳥藍良"], min: 3 },
+            { name: "北斗寢", score: 120000, req: ["氷鷹北斗", "紫之創", "蓮巳敬人"], min: 3 },
+            { name: "燐音寢", score: 120000, req: ["天城燐音", "深海奏汰", "巴日和"], min: 3 },
+            { name: "遊木寢", score: 120000, req: ["遊木真", "乙狩アドニス", "守沢千秋"], min: 3 },
+            { name: "南雲寢", score: 120000, req: ["南雲鉄虎", "HiMERU", "鳴上嵐"], min: 3 },
+            { name: "仙石寢", score: 120000, req: ["仙石忍", "神崎颯馬", "朱桜司"], min: 3 },
+            { name: "ゆうた寢", score: 120000, req: ["葵ゆうた", "乱凪砂", "羽風薫"], min: 3 },
+            { name: "一彩寢", score: 120000, req: ["天城一彩", "葵ひなた", "椎名ニキ"], min: 3 },
+            { name: "なずな寢", score: 120000, req: ["仁兎なずな", "月永レオ", "逆先夏目"], min: 3 },
+            { name: "凛月寢", score: 120000, req: ["朔間凛月", "影片みか", "ユメ"], min: 3 },
+            { name: "晃牙寢", score: 120000, req: ["大神晃牙", "風早巽", "カンナ"], min: 3 },
+            { name: "マヨイ寢", score: 120000, req: ["礼瀬マヨイ", "真白友也", "滝維吹"], min: 3 },
+            { name: "桃李寢", score: 120000, req: ["姫宮桃李", "伏見弓弦", "ライカ"], min: 3 },
+            { name: "ジュン寢", score: 120000, req: ["漣ジュン", "桜河こはく", "エス"], min: 3 },
+
+            // Page 8 (Common Traits)
+            { name: "リーダー (Leader)", score: 30000, req: ["天祥院英智", "氷鷹北斗", "守沢千秋", "天城一彩", "乱凪砂", "斎宮宗", "葵ひなた", "天城燐音", "朔間零", "仁兎なずな", "蓮巳敬人", "月永レオ", "逆先夏目", "三毛縞斑", "エス"], min: 3, stackable: true },
+            { name: "事務所代表", score: 120000, req: ["天祥院英智", "七種茨", "蓮巳敬人", "朱桜司"], min: 3 },
+            { name: "兄弟", score: 60000, req: ["朔間零", "朔間凛月", "天城燐音", "天城一彩", "葵ひなた", "葵ゆうた"], min: 2, stackable: true } 
+        ];
+
+        // 狀態管理
+        let selectedChars = new Set();
+
+        // --- 2. 初始化畫面 ---
+        function init() {
+            const container = document.getElementById('charContainer');
+            
+            units.forEach(unit => {
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'unit-group';
+                
+                const title = document.createElement('div');
+                title.className = 'unit-title';
+                title.textContent = unit.name;
+                groupDiv.appendChild(title);
+                
+                const grid = document.createElement('div');
+                grid.className = 'char-grid';
+                
+                unit.chars.forEach(char => {
+                    const btn = document.createElement('div');
+                    btn.className = 'char-card';
+                    btn.textContent = char;
+                    btn.onclick = () => toggleChar(char, btn);
+                    grid.appendChild(btn);
+                });
+                
+                groupDiv.appendChild(grid);
+                container.appendChild(groupDiv);
+            });
+        }
+
+        // --- 3. 互動邏輯 ---
+        function toggleChar(char, element) {
+            if (selectedChars.has(char)) {
+                selectedChars.delete(char);
+                element.classList.remove('active');
+            } else {
+                selectedChars.add(char);
+                element.classList.add('active');
+            }
+            updateUI();
+            calculate();
+        }
+
+        function updateBaseScore() {
+            const select = document.getElementById('baseScoreSelect');
+            const input = document.getElementById('baseScore');
+            
+            if (select.value === 'custom') {
+                input.style.display = 'block';
+                input.focus();
+                // 不自動清空，保留最後的值方便修改
+            } else {
+                input.style.display = 'none';
+                input.value = select.value;
+                calculate();
+            }
+        }
+
+        function updateUI() {
+            const count = selectedChars.size;
+            const counter = document.getElementById('handCount');
+            counter.textContent = `已選: ${count} / 9`;
+            
+            if (count > 9) {
+                counter.classList.add('limit');
+                counter.textContent += " (超過手牌上限)";
+            } else {
+                counter.classList.remove('limit');
+            }
+        }
+
+        function calculate() {
+            let totalBonus = 0;
+            const activeBonuses = [];
+            const hand = Array.from(selectedChars);
+            
+            // 掃描所有規則
+            bonusRules.forEach(rule => {
+                // 找出交集
+                const intersection = rule.req.filter(x => selectedChars.has(x));
+                
+                if (intersection.length >= rule.min) {
+                    let score = rule.score;
+                    let name = rule.name;
+
+                    // 處理疊加邏輯 (例如 Leader 6人 = 2倍分數)
+                    if (rule.stackable) {
+                        const multiplier = Math.floor(intersection.length / rule.min);
+                        score = rule.score * multiplier;
+                        if (multiplier > 1) {
+                            name = `${rule.name} (x${multiplier})`;
+                        }
+                    }
+
+                    totalBonus += score;
+                    activeBonuses.push({
+                        name: name,
+                        score: score,
+                        chars: intersection
+                    });
+                }
+            });
+            
+            // 計算總分
+            const base = parseInt(document.getElementById('baseScore').value) || 0;
+            const final = base + totalBonus;
+            
+            // 更新畫面
+            document.getElementById('finalScore').textContent = final.toLocaleString();
+            
+            renderBonusList(activeBonuses);
+        }
+
+        function renderBonusList(bonuses) {
+            const container = document.getElementById('bonusList');
+            container.innerHTML = '';
+            
+            if (bonuses.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #aaa; font-size: 0.9rem;">尚未觸發加點役</p>';
+                return;
+            }
+            
+            const ul = document.createElement('ul');
+            ul.className = 'yaku-list';
+            
+            bonuses.forEach(b => {
+                const li = document.createElement('li');
+                li.className = 'yaku-item';
+                if(b.score >= 90000) li.classList.add('special');
+                
+                li.innerHTML = `
+                    <div>
+                        <span class="yaku-name">${b.name}</span>
+                        <div class="yaku-chars">觸發: ${b.chars.join(', ')}</div>
+                    </div>
+                    <div class="yaku-points">+${b.score.toLocaleString()}</div>
+                `;
+                ul.appendChild(li);
+            });
+            
+            container.appendChild(ul);
+        }
+
+        function resetAll() {
+            selectedChars.clear();
+            document.querySelectorAll('.char-card').forEach(el => el.classList.remove('active'));
+            // 重置基本役選擇
+            document.getElementById('baseScoreSelect').value = "0";
+            document.getElementById('baseScore').value = 0;
+            document.getElementById('baseScore').style.display = 'none';
+            
+            updateUI();
+            calculate();
+        }
+
+        // 啟動
+        init();
+
+    </script>
+</body>
+</html>
